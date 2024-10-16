@@ -3,20 +3,33 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     kotlin("jvm") version "1.9.23"
     id("java")
-    id("com.github.johnrengelman.shadow") version("8.1.1")
+    id("com.github.johnrengelman.shadow") version ("8.1.1")
+    id("distribution")
 }
 
 
+apply(from = rootProject.file("config.gradle.kts"))
+val versions = extra["versions"] as Map<*, *>
+
 
 group = "com.xiaobaicai.plugin"
-version = "unspecified"
+version "${extra["projectVersion"]}"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    testImplementation(kotlin("test"))
+    implementation(project(":plugin-core"))
+    implementation("${versions["hutool-all"]}")
+    implementation("${versions["slf4j"]}")
+    compileOnly("${versions["lombok"]}")
+    testAnnotationProcessor("${versions["lombok"]}")
+    testCompileOnly("${versions["lombok"]}")
+    // 单测
+    testCompileOnly("${versions["junit"]}")
+    testImplementation("${versions["junit.jupiter.api"]}")
+    testImplementation("${versions["junit.jupiter.engine"]}")
 }
 
 tasks.test {
@@ -40,4 +53,9 @@ tasks.withType<ShadowJar> {
 
 tasks.register("prepareKotlinBuildScriptModel") {
     // No specific action required
+}
+
+// 设置 build 任务依赖于 shadowJar 任务
+tasks.named("build") {
+    dependsOn("shadowJar")
 }

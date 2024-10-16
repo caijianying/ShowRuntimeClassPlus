@@ -1,14 +1,16 @@
+import org.gradle.kotlin.dsl.support.listFilesOrdered
+
 plugins {
     id("java")
     id("distribution")
     id("org.jetbrains.intellij.platform") version "2.1.0"
 }
 
-apply(from = "config.gradle")
+apply(from = rootProject.file("config.gradle.kts"))
+val versions = extra["versions"] as Map<*, *>
 
 group = "com.xiaobaicai.plugin"
-// 242.23339.11
-version "${rootProject.version}"
+version "${extra["projectVersion"]}"
 
 repositories {
     mavenCentral()
@@ -19,19 +21,19 @@ repositories {
 
 
 dependencies {
-//    implementation(project(":plugin-core"))
-    implementation("cn.hutool:hutool-all:5.8.5")
-    annotationProcessor("org.projectlombok:lombok:1.18.2")
-    compileOnly("org.projectlombok:lombok:1.18.2")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.2")
-    testCompileOnly("org.projectlombok:lombok:1.18.2")
+    implementation(project(":plugin-core"))
+    implementation("${versions["hutool-all"]}")
+    annotationProcessor("${versions["lombok"]}")
+    compileOnly("${versions["lombok"]}")
+    testAnnotationProcessor("${versions["lombok"]}")
+    testCompileOnly("${versions["lombok"]}")
     // 单测
-    testCompileOnly("junit:junit:4.12")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:5.8.2")
+    testCompileOnly("${versions["junit"]}")
+    testImplementation("${versions["junit.jupiter.api"]}")
+    testImplementation("${versions["junit.jupiter.engine"]}")
 
     intellijPlatform {
-        intellijIdeaCommunity("2024.2.3")
+        intellijIdeaCommunity("2024.1")
         pluginVerifier()
         zipSigner()
         instrumentationTools()
@@ -47,8 +49,35 @@ java {
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {
-            sinceBuild = "223"
+            sinceBuild = "241"
             untilBuild = "243.*"
         }
     }
+}
+
+tasks.register<Copy>("copyJars") {
+    val sourceDir = project(":plugin-agent").projectDir.resolve("build/libs")
+    val targetDir = rootProject.projectDir.resolve("build/idea-sandbox/IC-2024.1/plugins/ShowRuntimeClassPlus/lib")
+
+    from(sourceDir) {
+        include("**/*-all.jar")  // 只复制 .jar 文件
+    }
+    into(targetDir)
+
+    // 打印复制操作的内容
+    doLast {
+        println("Copied .jar files from $sourceDir to $targetDir")
+    }
+}
+
+tasks.named("buildPlugin") {
+    dependsOn("copyJars")
+}
+
+tasks.named("build") {
+    dependsOn(project(":plugin-agent").tasks.get("shadowJar"))
+}
+
+tasks.named("instrumentedJar") {
+    mustRunAfter("copyJars")
 }
